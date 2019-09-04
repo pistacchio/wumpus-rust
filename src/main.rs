@@ -106,14 +106,14 @@ struct Room {
     neighbors: [usize; ROOM_NEIGHBORS],
     /// Possible danger in the room.
     contents: RoomContents,
-    /// Wumpus in the room.
-    wumpus: bool,
 }
 
 /// The Maze, including RNG state.
 struct Maze {
     /// Room list.
     rooms: [Room; MAZE_ROOMS],
+    /// Wumpus room position.
+    wumpus: usize,
     /// RNG state.
     rng: ThreadRng,
 }
@@ -178,13 +178,14 @@ impl Maze {
         // done with zips, but is probably easier to read
         // this way.
         let mut player_loc = None;
+        let mut wumpus_loc = None;
         for (i, r) in rooms.iter_mut().enumerate() {
             r.neighbors = Maze::ADJS[i];
             match contents[i] {
                 Normal(c) => r.contents = c,
                 Wumpus => {
                     r.contents = Empty;
-                    r.wumpus = true;
+                    wumpus_loc = Some(i);
                 }
                 Player => {
                     r.contents = Empty;
@@ -193,7 +194,8 @@ impl Maze {
             }
         }
 
-        (Maze { rooms, rng }, player_loc.unwrap())
+        let wumpus = wumpus_loc.unwrap();
+        (Maze { rooms, wumpus, rng }, player_loc.unwrap())
     }
 
     /// Description strings for adjacent dangers.
@@ -213,7 +215,7 @@ impl Maze {
             }
         }
 
-        if self.is_wumpus_nearby(room).is_some() {
+        if self.is_wumpus_nearby(room) {
             desc_lines.push(
                 "You smell something terrible nearby.".to_string(),
             );
@@ -244,12 +246,8 @@ impl Maze {
     }
 
     /// Specific adjacent room contains the Wumpus.
-    fn is_wumpus_nearby(&self, room: usize) -> Option<usize> {
-        self.rooms[room]
-            .neighbors
-            .iter()
-            .cloned()
-            .find(|&n| self.rooms[n].wumpus)
+    fn is_wumpus_nearby(&self, room: usize) -> bool {
+        self.rooms[room].neighbors.iter().any(|&n| n == self.wumpus)
     }
 
     /// Index of neighboring room given by user
@@ -275,20 +273,19 @@ impl Maze {
         Ok(dest)
     }
 
-    fn empty_room(&mut self) -> usize {
+    /// Return a randomly-selected empty room.
+    fn random_empty_room(&mut self) -> usize {
         // Number of rooms that should be empty. This should
         // maybe be replaced with a counting loop.
         let nempty = self.rooms.len() - BATS - PITS - 1;
-        let mut n = self.rng.gen_range(0, nempty);
-        for (i, r) in self.rooms.iter().enumerate() {
-            if !r.wumpus && r.contents == Empty {
-                if n == 0 {
-                    return i;
-                }
-                n -= 1;
-            }
-        }
-        panic!("internal error: could not find empty room");
+        let n = self.rng.gen_range(0, nempty);
+        self.rooms
+            .iter()
+            .enumerate()
+            .filter(|&(i, r)| self.wumpus != i && r.contents == Empty)
+            .nth(n)
+            .unwrap()
+            .0
     }
 }
 
@@ -341,7 +338,7 @@ fn main() {
             Moving => {
                 match maze.parse_room(input, player.room) {
                     Ok(room) => {
-                        if maze.rooms[room].wumpus {
+                        if maze.wumpus == room {
                             println!("The wumpus ate you up!");
                             println!("GAME OVER");
                             exit(0);
@@ -351,7 +348,7 @@ fn main() {
                             exit(0);
                         } else if maze.rooms[room].contents == Bat {
                             println!("The bats whisk you away!");
-                            player.room = maze.empty_room();
+                            player.room = maze.random_empty_room();
                         } else {
                             player.room = room;
                         }
@@ -368,19 +365,17 @@ fn main() {
             Shooting => {
                 match maze.parse_room(input, player.room) {
                     Ok(room) => {
-                        if maze.rooms[room].wumpus {
+                        if maze.wumpus == room {
                             println!("YOU KILLED THE WUMPUS! GOOD JOB, BUDDY!!!");
                             exit(0);
                         }
 
-                        if let Some(wumpus_room) =
-                            maze.is_wumpus_nearby(room)
-                        {
+                        if maze.is_wumpus_nearby(room) {
                             // 75% chances of waking up the wumpus that would go into another room
                             if maze.rng.gen::<f32>() <= WAKE_WUMPUS_PROB
                             {
                                 let new_wumpus_room = *maze.rooms
-                                    [wumpus_room]
+                                    [maze.wumpus]
                                     .neighbors
                                     .choose(&mut maze.rng)
                                     .unwrap();
@@ -391,9 +386,7 @@ fn main() {
                                     exit(1);
                                 }
 
-                                maze.rooms[wumpus_room].wumpus = false;
-                                maze.rooms[new_wumpus_room].wumpus =
-                                    true;
+                                maze.wumpus = new_wumpus_room;
                                 println!("You heard a rumbling in a nearby cavern.");
                             }
                         }
