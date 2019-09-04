@@ -213,7 +213,7 @@ impl Maze {
             }
         }
 
-        if let Some(_) = self.is_wumpus_nearby(room) {
+        if self.is_wumpus_nearby(room).is_some() {
             desc_lines.push(
                 "You smell something terrible nearby.".to_string(),
             );
