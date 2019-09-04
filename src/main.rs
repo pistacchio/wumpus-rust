@@ -274,6 +274,22 @@ impl Maze {
 
         Ok(dest)
     }
+
+    fn empty_room(&mut self) -> usize {
+        // Number of rooms that should be empty. This should
+        // maybe be replaced with a counting loop.
+        let nempty = self.rooms.len() - BATS - PITS - 1;
+        let mut n = self.rng.gen_range(0, nempty);
+        for (i, r) in self.rooms.iter().enumerate() {
+            if !r.wumpus && r.contents == Empty {
+                if n == 0 {
+                    return i;
+                }
+                n -= 1;
+            }
+        }
+        panic!("internal error: could not find empty room");
+    }
 }
 
 /// Current game state.
@@ -335,8 +351,7 @@ fn main() {
                             exit(0);
                         } else if maze.rooms[room].contents == Bat {
                             println!("The bats whisk you away!");
-                            player.room =
-                                maze.rng.gen_range(0, maze.rooms.len());
+                            player.room = maze.empty_room();
                         } else {
                             player.room = room;
                         }
