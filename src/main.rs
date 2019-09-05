@@ -52,18 +52,20 @@ const ARROWS: usize = 5;
 
 const WAKE_WUMPUS_PROB: f32 = 0.75;
 
+type RoomNum = usize;
+
 ////////////
 // PLAYER //
 ////////////
 
 #[derive(Debug)]
 struct Player {
-    room: usize,
+    room: RoomNum,
     arrows: usize,
 }
 
 impl Player {
-    fn new(room: usize) -> Self {
+    fn new(room: RoomNum) -> Self {
         Player {
             arrows: ARROWS,
             room,
@@ -84,13 +86,13 @@ enum Danger {
 
 #[derive(Default, Debug)]
 struct Room {
-    id: usize,
-    neighbours: [Cell<Option<usize>>; ROOM_NEIGHBOURS],
+    id: RoomNum,
+    neighbours: [Cell<Option<RoomNum>>; ROOM_NEIGHBOURS],
     dangers: Vec<Danger>,
 }
 
 impl Room {
-    fn new(id: usize) -> Self {
+    fn new(id: RoomNum) -> Self {
         let default_room = Room::default();
 
         Room {
@@ -99,11 +101,11 @@ impl Room {
         }
     }
 
-    fn missing_neighbours(&self) -> usize {
+    fn missing_neighbours(&self) -> RoomNum {
         self.neighbours.iter().filter(|n| n.get().is_none()).count()
     }
 
-    fn neighbour_ids(&self) -> Vec<usize> {
+    fn neighbour_ids(&self) -> Vec<RoomNum> {
         self.neighbours.iter()
             .filter(|n| n.get().is_some())
             .map(|n| n.get().unwrap())
@@ -126,7 +128,7 @@ impl Maze {
     // to link to it
     fn new(rng: Rc<RefCell<ThreadRng>>) -> Self {
         let rooms: Vec<Room> = (0..MAZE_ROOMS)
-            .map(|idx| Room::new(idx as usize))
+            .map(|idx| Room::new(idx as RoomNum))
             .collect();
 
         // for each room, see how many missing neighbours there are and them
@@ -179,7 +181,7 @@ impl Maze {
         maze
     }
 
-    fn rnd_empty_room(&mut self) -> usize {
+    fn rnd_empty_room(&mut self) -> RoomNum {
         let empty_rooms: Vec<_> = self.rooms.iter()
             .filter(|n| n.dangers.is_empty())
             .collect();
@@ -190,7 +192,7 @@ impl Maze {
             .id
     }
 
-    fn rnd_empty_neighbour(&mut self, room: usize) -> Option<usize> {
+    fn rnd_empty_neighbour(&mut self, room: RoomNum) -> Option<RoomNum> {
         let neighbour_ids = self.rooms[room].neighbour_ids();
 
         let empty_neighbours: Vec<_> = neighbour_ids.iter()
@@ -208,7 +210,7 @@ impl Maze {
         Some(**empty_neighbour)
     }
 
-    fn describe_room(&self, room: usize) -> String {
+    fn describe_room(&self, room: RoomNum) -> String {
         let mut description = format!("You are in room #{}", room);
 
         if self.is_danger_nearby(room, Danger::Pit) {
@@ -231,15 +233,15 @@ impl Maze {
         description
     }
 
-    fn is_danger_nearby(&self, room: usize, danger: Danger) -> bool {
+    fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
         self.rooms[room].neighbours.iter().find(|n| {
             self.rooms[n.get().unwrap()]
                 .dangers.contains(&danger)
         }).is_some()
     }
 
-    fn parse_room(&self, destination: &str, current_room: usize) -> Result<usize, ()> {
-        let destination: Result<usize, _> = destination.parse();
+    fn parse_room(&self, destination: &str, current_room: RoomNum) -> Result<RoomNum, ()> {
+        let destination: Result<RoomNum, _> = destination.parse();
 
         // check that the given destination is both a number an the number of a linked room
         if let Ok(room) = destination {
