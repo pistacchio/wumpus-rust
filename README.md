@@ -1,4 +1,4 @@
-# Hunt The Wumpus - Rus
+# Hunt The Wumpus - Rust
 
 An implementation in Rust of the simple text-based game described [here](https://rosettacode.org/wiki/Hunt_The_Wumpus) done for [rosettacode.org](http://rosettacode.org/)
 
