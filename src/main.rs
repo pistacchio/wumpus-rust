@@ -97,7 +97,7 @@ impl Room {
     }
 
     fn neighbour_ids(&self) -> Vec<RoomNum> {
-        self.neighbours.clone().to_vec()
+        self.neighbours.to_vec()
     }
 }
 
@@ -261,9 +261,8 @@ fn test_maze_connected() {
             return true;
         }
         vis.insert(i);
-        maze.rooms[i].neighbours.iter().any(|neighbour| {
+        maze.rooms[i].neighbours.iter().any(|&k| {
             // Check that all rooms have three neighbors.
-            let k = neighbour.get().unwrap();
             !vis.contains(&k) && exists_path(k, j, vis, maze)
         })
     }
@@ -286,8 +285,8 @@ enum Status {
 }
 
 fn main() {
-    let mut rng = rand::thread_rng();
-    let mut maze = Maze::new(rng.clone());
+    let rng = rand::thread_rng();
+    let mut maze = Maze::new(rng);
     let mut player = Player::new(maze.rnd_empty_room());
     let mut status = Status::Normal;
 
@@ -352,7 +351,7 @@ fn main() {
                         exit(0);
                     } else {
                         // 75% chances of waking up the wumpus that would go into another room
-                        if rng.gen::<f32>() < WAKE_WUMPUS_PROB {
+                        if maze.rng.gen::<f32>() < WAKE_WUMPUS_PROB {
                             let wumpus_room = maze.rooms.iter()
                                 .find(|r| r.dangers.contains(&Danger::Wumpus))
                                 .unwrap()
