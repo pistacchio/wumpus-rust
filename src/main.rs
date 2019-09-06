@@ -359,7 +359,7 @@ fn main() {
                     );
                 }
             }
-            _ => match input {
+            Status::Normal => match input {
                 "h" => println!("{}", HELP),
                 "q" => {
                     println!("Are you so easily scared? [y/n]");
