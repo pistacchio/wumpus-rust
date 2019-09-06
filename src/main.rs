@@ -1,10 +1,8 @@
 use std::cell::{Cell, RefCell};
-use std::io;
-use std::io::Write;
+use std::io::{self, Write};
 use std::process::exit;
 use std::rc::Rc;
 use std::ops::{DerefMut, Deref};
-use rand::prelude::ThreadRng;
 use rand::prelude::*;
 
 
