@@ -1,10 +1,10 @@
 //! *Hunt the Wumpus* reimplementation in Rust.
 
+use rand;
+use rand::prelude::SliceRandom;
 use std::io;
 use std::io::Write;
 use std::process::exit;
-use rand;
-use rand::prelude::SliceRandom;
 
 /// Help message.
 const HELP: &str = "\
@@ -108,17 +108,11 @@ impl Room {
     fn new(id: RoomNum) -> Self {
         let default_room = Room::default();
 
-        Room {
-            id,
-            ..default_room
-        }
+        Room { id, ..default_room }
     }
 
     fn neighbour_ids(&self) -> Vec<RoomNum> {
-        self.neighbours.iter()
-            .cloned()
-            .filter_map(|n| n)
-            .collect()
+        self.neighbours.iter().cloned().filter_map(|n| n).collect()
     }
 }
 
@@ -166,9 +160,7 @@ impl Maze {
             }
         }
 
-        let mut maze = Maze {
-            rooms
-        };
+        let mut maze = Maze { rooms };
 
         // place the wumpus, pits and bats in empty rooms
         let empty_room = maze.rnd_empty_room();
@@ -189,21 +181,17 @@ impl Maze {
 
     /// Return a randomly-selected empty room.
     fn rnd_empty_room(&mut self) -> RoomNum {
-        let empty_rooms: Vec<_> = self.rooms.iter()
-            .filter(|n| n.dangers.is_empty())
-            .collect();
+        let empty_rooms: Vec<_> = self.rooms.iter().filter(|n| n.dangers.is_empty()).collect();
 
-        empty_rooms
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .id
+        empty_rooms.choose(&mut rand::thread_rng()).unwrap().id
     }
 
     /// Retrun the id of a random empty neighbour if any
     fn rnd_empty_neighbour(&mut self, room: RoomNum) -> Option<RoomNum> {
         let neighbour_ids = self.rooms[room].neighbour_ids();
 
-        let empty_neighbours: Vec<_> = neighbour_ids.iter()
+        let empty_neighbours: Vec<_> = neighbour_ids
+            .iter()
             .filter(|&n| self.rooms[*n].dangers.is_empty())
             .collect();
 
@@ -211,9 +199,7 @@ impl Maze {
             return None;
         }
 
-        let empty_neighbour = empty_neighbours
-            .choose(&mut rand::thread_rng())
-            .unwrap();
+        let empty_neighbour = empty_neighbours.choose(&mut rand::thread_rng()).unwrap();
 
         Some(**empty_neighbour)
     }
@@ -232,22 +218,25 @@ impl Maze {
             description.push_str("\nYou smell something terrible nearby.");
         }
 
-        description.push_str(&format!("\nExits go to: {}",
-                                      self.rooms[room].neighbours
-                                          .iter()
-                                          .map(|n| n.unwrap().to_string())
-                                          .collect::<Vec<String>>()
-                                          .join(", ")));
+        description.push_str(&format!(
+            "\nExits go to: {}",
+            self.rooms[room]
+                .neighbours
+                .iter()
+                .map(|n| n.unwrap().to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        ));
 
         description
     }
 
     /// Adjacent room contains a non-wumpus danger.
     fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
-        self.rooms[room].neighbours.iter().any(|n| {
-            self.rooms[n.unwrap()]
-                .dangers.contains(&danger)
-        })
+        self.rooms[room]
+            .neighbours
+            .iter()
+            .any(|n| self.rooms[n.unwrap()].dangers.contains(&danger))
     }
 
     /// Index of neighboring room given by user `destination`, else an error message.
@@ -294,23 +283,23 @@ fn main() {
     // main loop
     loop {
         let mut input = String::new();
-        io::stdin().read_line(&mut input).expect("Cannot read from stdin");
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Cannot read from stdin");
         let input: &str = &input.trim().to_lowercase();
 
         match status {
-            Status::Quitting => {
-                match input {
-                    "y" => {
-                        println!("Goodbye, braveheart!");
-                        exit(0);
-                    }
-                    "n" => {
-                        println!("Good. the Wumpus is looking for you!");
-                        status = Status::Normal;
-                    }
-                    _ => println!("That doesn't make any sense")
+            Status::Quitting => match input {
+                "y" => {
+                    println!("Goodbye, braveheart!");
+                    exit(0);
                 }
-            }
+                "n" => {
+                    println!("Good. the Wumpus is looking for you!");
+                    status = Status::Normal;
+                }
+                _ => println!("That doesn't make any sense"),
+            },
             Status::Moving => {
                 if let Ok(room) = maze.parse_room(input, player.room) {
                     if maze.rooms[room].dangers.contains(&Danger::Wumpus) {
@@ -329,7 +318,9 @@ fn main() {
                     status = Status::Normal;
                     describe(&maze, &player);
                 } else {
-                    println!("There are no tunnels from here to that room. Where do you wanto do go?");
+                    println!(
+                        "There are no tunnels from here to that room. Where do you wanto do go?"
+                    );
                 }
             }
             Status::Shooting => {
@@ -340,7 +331,9 @@ fn main() {
                     } else {
                         // 75% chances of waking up the wumpus that would go into another room
                         if rand::random::<f32>() < WAKE_WUMPUS_PROB {
-                            let wumpus_room = maze.rooms.iter()
+                            let wumpus_room = maze
+                                .rooms
+                                .iter()
                                 .find(|r| r.dangers.contains(&Danger::Wumpus))
                                 .unwrap()
                                 .id;
@@ -351,7 +344,9 @@ fn main() {
                                     exit(1);
                                 }
 
-                                maze.rooms[wumpus_room].dangers.retain(|d| d != &Danger::Wumpus);
+                                maze.rooms[wumpus_room]
+                                    .dangers
+                                    .retain(|d| d != &Danger::Wumpus);
                                 maze.rooms[new_wumpus_room].dangers.push(Danger::Wumpus);
                                 println!("You heard a rumbling in a nearby cavern.");
                             }
@@ -366,27 +361,27 @@ fn main() {
                         status = Status::Normal;
                     }
                 } else {
-                    println!("There are no tunnels from here to that room. Where do you wanto do shoot?");
+                    println!(
+                        "There are no tunnels from here to that room. Where do you wanto do shoot?"
+                    );
                 }
             }
-            _ => {
-                match input {
-                    "h" => println!("{}", HELP),
-                    "q" => {
-                        println!("Are you so easily scared? [y/n]");
-                        status = Status::Quitting;
-                    }
-                    "m" => {
-                        println!("Where?");
-                        status = Status::Moving;
-                    }
-                    "s" => {
-                        println!("Where?");
-                        status = Status::Shooting;
-                    }
-                    _ => println!("That doesn't make any sense")
+            _ => match input {
+                "h" => println!("{}", HELP),
+                "q" => {
+                    println!("Are you so easily scared? [y/n]");
+                    status = Status::Quitting;
                 }
-            }
+                "m" => {
+                    println!("Where?");
+                    status = Status::Moving;
+                }
+                "s" => {
+                    println!("Where?");
+                    status = Status::Shooting;
+                }
+                _ => println!("That doesn't make any sense"),
+            },
         }
 
         prompt();
@@ -399,13 +394,7 @@ fn test_maze_connected() {
     let maze = Maze::new();
     let n = maze.rooms.len();
 
-    fn exists_path(
-        i: RoomNum,
-        j: RoomNum,
-        vis: &mut HashSet<RoomNum>,
-        maze: &Maze)
-        -> bool
-    {
+    fn exists_path(i: RoomNum, j: RoomNum, vis: &mut HashSet<RoomNum>, maze: &Maze) -> bool {
         if i == j {
             return true;
         }
