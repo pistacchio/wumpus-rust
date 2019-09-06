@@ -230,10 +230,10 @@ impl Maze {
     }
 
     fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
-        self.rooms[room].neighbours.iter().find(|n| {
+        self.rooms[room].neighbours.iter().any(|n| {
             self.rooms[n.get().unwrap()]
                 .dangers.contains(&danger)
-        }).is_some()
+        })
     }
 
     fn parse_room(&self, destination: &str, current_room: RoomNum) -> Result<RoomNum, ()> {
