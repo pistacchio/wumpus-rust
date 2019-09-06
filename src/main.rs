@@ -91,10 +91,6 @@ impl Room {
 
         Room { id, ..default_room }
     }
-
-    fn neighbour_ids(&self) -> Vec<RoomNum> {
-        self.neighbours.to_vec()
-    }
 }
 
 //////////
@@ -178,7 +174,7 @@ impl Maze {
         &mut self,
         room: RoomNum,
     ) -> Option<RoomNum> {
-        let neighbour_ids = self.rooms[room].neighbour_ids();
+        let neighbour_ids = &self.rooms[room].neighbours;
 
         let empty_neighbours: Vec<_> = neighbour_ids
             .iter()
@@ -240,8 +236,7 @@ impl Maze {
 
         // check that the given destination is both a number an the number of a linked room
         if let Ok(room) = destination {
-            if self.rooms[current_room].neighbour_ids().contains(&room)
-            {
+            if self.rooms[current_room].neighbours.contains(&room) {
                 return Ok(room);
             }
         }
