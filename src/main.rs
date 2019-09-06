@@ -101,10 +101,6 @@ impl Room {
         }
     }
 
-    fn missing_neighbours(&self) -> RoomNum {
-        self.neighbours.iter().filter(|n| n.get().is_none()).count()
-    }
-
     fn neighbour_ids(&self) -> Vec<RoomNum> {
         self.neighbours.iter()
             .filter(|n| n.get().is_some())
@@ -124,38 +120,40 @@ struct Maze {
 }
 
 impl Maze {
-    // Builds a vector of interconnected rooms by looping each room and finding three other rooms
-    // to link to it
+    // List of adjacencies used to wire up the dodecahedron.
+    // https://stackoverflow.com/a/44096541/364875
+    const ADJS: [[usize; 3]; 20] = [
+        [1, 4, 7],
+        [0, 2, 9],
+        [1, 3, 11],
+        [2, 4, 13],
+        [0, 3, 5],
+        [4, 6, 14],
+        [5, 7, 16],
+        [0, 6, 8],
+        [7, 9, 17],
+        [1, 8, 10],
+        [9, 11, 18],
+        [2, 10, 12],
+        [11, 13, 19],
+        [3, 12, 14],
+        [5, 13, 15],
+        [14, 16, 19],
+        [6, 15, 17],
+        [8, 16, 18],
+        [10, 17, 19],
+        [12, 15, 18],
+    ];
+
+    // Builds a vector of rooms comprising a dodecahedron.
     fn new(rng: Rc<RefCell<ThreadRng>>) -> Self {
-        let rooms: Vec<Room> = (0..MAZE_ROOMS)
+        let mut rooms: Vec<Room> = (0..MAZE_ROOMS)
             .map(|idx| Room::new(idx as RoomNum))
             .collect();
 
-        // for each room, see how many missing neighbours there are and them
-        for room in rooms.iter() {
-            for idx in 0..room.neighbours.len() {
-                if room.neighbours[idx].get().is_none() {
-                    // a suitable neighbour room is a room that is not the current one, not yet
-                    // linked to the current one and that still has available neighbours
-                    let neighbour = rooms.iter()
-                        .find(|n| true &&
-                            n.id != room.id
-                            && n.missing_neighbours() != 0
-                            && !room.neighbour_ids().contains(&n.id)
-                        )
-                        .expect("Cannot find a suitable neighbour");
-
-                    room.neighbours[idx].set(Some(neighbour.id));
-
-                    // link back the current room to the neighbour so that Room #0 has a link to
-                    // Room #1 and Room #1 has a link to Room #0
-                    for i in 0..ROOM_NEIGHBOURS {
-                        if neighbour.neighbours[i].get().is_none() {
-                            neighbour.neighbours[i].set(Some(room.id));
-                            break;
-                        }
-                    }
-                }
+        for (i, room) in rooms.iter_mut().enumerate() {
+            for (j, nb) in room.neighbours.iter_mut().enumerate() {
+                nb.set(Some(Maze::ADJS[i][j]));
             }
         }
 
