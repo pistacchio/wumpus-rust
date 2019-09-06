@@ -1,3 +1,5 @@
+//! *Hunt the Wumpus* reimplementation in Rust.
+
 use std::cell::{Cell, RefCell};
 use std::io;
 use std::io::Write;
@@ -7,64 +9,78 @@ use std::ops::{DerefMut, Deref};
 use rand::prelude::ThreadRng;
 use rand::prelude::*;
 
-
-///////////////
-// CONSTANTS //
-///////////////
-
+/// Help message.
 const HELP: &str = "\
 Welcome to \"Hunt the Wumpus\"
-The wumpus lives in a cave of 20 rooms. Each room has 3 tunnels to
-other rooms. (Look at a dodecahedron to see how this works. If you
-dont know what a dodecahedron is, ask someone.)
+
+The wumpus lives in a cave of 20 rooms. Each room has 3
+tunnels to other rooms. (The tunnels form a dodecahedron:
+http://en.wikipedia.org/wiki/dodecahedron)
+
 Hazards:
- Bottomless pits - Two rooms have bottomless pits in them. If you go
+
+ Bottomless pits: Two rooms have bottomless pits in them. If you go
    there, you fall into the pit (& lose)!
- Super bats - Two other rooms have super bats. If you go there, a
-   bat grabs you and takes you to some other room at random (which
-   may be troublesome).
+
+ Super bats: Two other rooms have super bats. If you go
+   there, a bat grabs you and takes you to some other room
+   at random (which may be troublesome).
+
 Wumpus:
-   The wumpus is not bothered by hazards. (He has sucker feet and is
-   too big for a bat to lift.)  Usually he is asleep. Two things
-   wake him up: your shooting an arrow, or your entering his room.
-   If the wumpus wakes, he moves one room or stays still.
-   After that, if he is where you are, he eats you up and you lose!
+
+   The wumpus is not bothered by hazards. (He has sucker
+   feet and is too big for a bat to lift.)  Usually he is
+   asleep. Two things wake him up: your shooting an arrow,
+   or your entering his room.  If the wumpus wakes, he moves
+   one room or stays still.  After that, if he is where you
+   are, he eats you up and you lose!
+
 You:
+
    Each turn you may move or shoot a crooked arrow.
-   Moving:  You can move one room (through one tunnel).
-   Arrows:  You have 5 arrows.  You lose when you run out.
-      You can only shoot to nearby rooms.
-      If the arrow hits the wumpus, you win.
+
+   Moving: You can move one room (through one tunnel).
+
+   Arrows: You have 5 arrows. You lose when you run out.
+      You can only shoot to nearby rooms. If the arrow hits
+      the wumpus, you win.
+
 Warnings:
-   When you are one room away from a wumpus or hazard, the computer
-   says:
+
+   When you are one room away from a wumpus or hazard, the
+   computer says:
+
    Wumpus:  \"You smell something terrible nearby.\"
-   Bat   :  \"You hear a rustling.\"
-   Pit   :  \"You feel a cold wind blowing from a nearby cavern.\"
+   Bat:  \"You hear a rustling.\"
+   Pit:  \"You feel a cold wind blowing from a nearby cavern.\"
 ";
 
+/// The maze is an dodecahedron.
 const MAZE_ROOMS: usize = 20;
-const ROOM_NEIGHBOURS: usize = 3;
+const ROOM_NEIGHBORS: usize = 3;
 
+/// Number of bats.
 const BATS: usize = 2;
+/// Number of pits.
 const PITS: usize = 2;
+/// Initial number of arrows.
 const ARROWS: usize = 5;
 
+/// Fractional chance of waking the Wumpus on entry to its room.
 const WAKE_WUMPUS_PROB: f32 = 0.75;
 
 type RoomNum = usize;
 
-////////////
-// PLAYER //
-////////////
-
-#[derive(Debug)]
+/// Description of the current player state.
 struct Player {
+    /// Player location.
     room: RoomNum,
+    /// Remaining number of arrows.
     arrows: usize,
 }
 
 impl Player {
+    /// Make a new player starting in the given room.
     fn new(room: RoomNum) -> Self {
         Player {
             arrows: ARROWS,
@@ -73,21 +89,21 @@ impl Player {
     }
 }
 
-//////////
-// ROOM //
-//////////
-
-#[derive(Debug, PartialEq)]
+/// Dangerous things that can be in a room.
+#[derive(PartialEq)]
 enum Danger {
     Wumpus,
     Bat,
     Pit,
 }
 
-#[derive(Default, Debug)]
+/// Room description.
+#[derive(Default)]
 struct Room {
     id: RoomNum,
-    neighbours: [Cell<Option<RoomNum>>; ROOM_NEIGHBOURS],
+    /// The indices of neighboring rooms.
+    neighbours: [Cell<Option<RoomNum>>; ROOM_NEIGHBORS],
+    /// Possible danger in the room.
     dangers: Vec<Danger>,
 }
 
@@ -109,13 +125,11 @@ impl Room {
     }
 }
 
-//////////
-// MAZE //
-//////////
-
-#[derive(Debug)]
+/// The Maze, including RNG state.
 struct Maze {
+    /// Room list.
     rooms: Vec<Room>,
+    /// RNG state.
     rng: Rc<RefCell<ThreadRng>>,
 }
 
@@ -179,6 +193,7 @@ impl Maze {
         maze
     }
 
+    /// Return a randomly-selected empty room.
     fn rnd_empty_room(&mut self) -> RoomNum {
         let empty_rooms: Vec<_> = self.rooms.iter()
             .filter(|n| n.dangers.is_empty())
@@ -190,6 +205,7 @@ impl Maze {
             .id
     }
 
+    /// Retrun the id of a random empty neighbour if any
     fn rnd_empty_neighbour(&mut self, room: RoomNum) -> Option<RoomNum> {
         let neighbour_ids = self.rooms[room].neighbour_ids();
 
@@ -208,6 +224,7 @@ impl Maze {
         Some(**empty_neighbour)
     }
 
+    /// Current room description string.
     fn describe_room(&self, room: RoomNum) -> String {
         let mut description = format!("You are in room #{}", room);
 
@@ -231,6 +248,7 @@ impl Maze {
         description
     }
 
+    /// Adjacent room contains a non-wumpus danger.
     fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
         self.rooms[room].neighbours.iter().find(|n| {
             self.rooms[n.get().unwrap()]
@@ -238,6 +256,7 @@ impl Maze {
         }).is_some()
     }
 
+    /// Index of neighboring room given by user `destination`, else an error message.
     fn parse_room(&self, destination: &str, current_room: RoomNum) -> Result<RoomNum, ()> {
         let destination: Result<RoomNum, _> = destination.parse();
 
@@ -252,41 +271,7 @@ impl Maze {
     }
 }
 
-#[test]
-fn test_maze_connected() {
-    use std::collections::HashSet;
-    let rng = Rc::new(RefCell::new(rand::thread_rng()));
-    let maze = Maze::new(rng.clone());
-    let n = maze.rooms.len();
-
-    fn exists_path(
-        i: RoomNum,
-        j: RoomNum,
-        vis: &mut HashSet<RoomNum>,
-        maze: &Maze)
-        -> bool
-    {
-        if i == j {
-            return true;
-        }
-        vis.insert(i);
-        maze.rooms[i].neighbours.iter().any(|neighbour| {
-            // Check that all rooms have three neighbors.
-            let k = neighbour.get().unwrap();
-            !vis.contains(&k) && exists_path(k, j, vis, maze)
-        })
-    }
-    for i in 0..n {
-        for j in 0..n {
-            assert!(exists_path(i, j, &mut HashSet::new(), &maze));
-        }
-    }
-}
-
-///////////////
-// MAIN LOOP //
-///////////////
-
+/// Current game state.
 enum Status {
     Normal,
     Quitting,
@@ -412,5 +397,36 @@ fn main() {
         }
 
         prompt();
+    }
+}
+
+#[test]
+fn test_maze_connected() {
+    use std::collections::HashSet;
+    let rng = Rc::new(RefCell::new(rand::thread_rng()));
+    let maze = Maze::new(rng.clone());
+    let n = maze.rooms.len();
+
+    fn exists_path(
+        i: RoomNum,
+        j: RoomNum,
+        vis: &mut HashSet<RoomNum>,
+        maze: &Maze)
+        -> bool
+    {
+        if i == j {
+            return true;
+        }
+        vis.insert(i);
+        maze.rooms[i].neighbours.iter().any(|neighbour| {
+            // Check that all rooms have three neighbors.
+            let k = neighbour.get().unwrap();
+            !vis.contains(&k) && exists_path(k, j, vis, maze)
+        })
+    }
+    for i in 0..n {
+        for j in 0..n {
+            assert!(exists_path(i, j, &mut HashSet::new(), &maze));
+        }
     }
 }
