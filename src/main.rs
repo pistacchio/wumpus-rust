@@ -1,6 +1,5 @@
 //! *Hunt the Wumpus* reimplementation in Rust.
 
-use std::cell::{Cell};
 use std::io;
 use std::io::Write;
 use std::process::exit;
@@ -100,7 +99,7 @@ enum Danger {
 struct Room {
     id: RoomNum,
     /// The indices of neighboring rooms.
-    neighbours: [Cell<Option<RoomNum>>; ROOM_NEIGHBORS],
+    neighbours: [Option<RoomNum>; ROOM_NEIGHBORS],
     /// Possible danger in the room.
     dangers: Vec<Danger>,
 }
@@ -117,8 +116,8 @@ impl Room {
 
     fn neighbour_ids(&self) -> Vec<RoomNum> {
         self.neighbours.iter()
-            .filter(|n| n.get().is_some())
-            .map(|n| n.get().unwrap())
+            .cloned()
+            .filter_map(|n| n)
             .collect()
     }
 }
@@ -163,7 +162,7 @@ impl Maze {
 
         for (i, room) in rooms.iter_mut().enumerate() {
             for (j, nb) in room.neighbours.iter_mut().enumerate() {
-                nb.set(Some(Maze::ADJS[i][j]));
+                *nb = Some(Maze::ADJS[i][j]);
             }
         }
 
@@ -236,7 +235,7 @@ impl Maze {
         description.push_str(&format!("\nExits go to: {}",
                                       self.rooms[room].neighbours
                                           .iter()
-                                          .map(|n| n.get().unwrap().to_string())
+                                          .map(|n| n.unwrap().to_string())
                                           .collect::<Vec<String>>()
                                           .join(", ")));
 
@@ -245,10 +244,10 @@ impl Maze {
 
     /// Adjacent room contains a non-wumpus danger.
     fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
-        self.rooms[room].neighbours.iter().find(|n| {
-            self.rooms[n.get().unwrap()]
+        self.rooms[room].neighbours.iter().any(|n| {
+            self.rooms[n.unwrap()]
                 .dangers.contains(&danger)
-        }).is_some()
+        })
     }
 
     /// Index of neighboring room given by user `destination`, else an error message.
@@ -413,7 +412,7 @@ fn test_maze_connected() {
         vis.insert(i);
         maze.rooms[i].neighbours.iter().any(|neighbour| {
             // Check that all rooms have three neighbors.
-            let k = neighbour.get().unwrap();
+            let k = neighbour.unwrap();
             !vis.contains(&k) && exists_path(k, j, vis, maze)
         })
     }
