@@ -176,19 +176,15 @@ impl Maze {
     ) -> Option<RoomNum> {
         let neighbour_ids = &self.rooms[room].neighbours;
 
-        let empty_neighbours: Vec<_> = neighbour_ids
+        let empty_neighbours: Vec<RoomNum> = neighbour_ids
             .iter()
             .filter(|&n| self.rooms[*n].dangers.is_empty())
+            .cloned()
             .collect();
 
-        if empty_neighbours.is_empty() {
-            return None;
-        }
-
-        let empty_neighbour =
-            empty_neighbours.choose(&mut self.rng).unwrap();
-
-        Some(**empty_neighbour)
+        empty_neighbours
+            .choose(&mut self.rng)
+            .map(|&n| n)
     }
 
     fn describe_room(&self, room: RoomNum) -> String {
