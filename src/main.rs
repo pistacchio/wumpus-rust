@@ -99,7 +99,7 @@ enum Danger {
 struct Room {
     id: RoomNum,
     /// The indices of neighboring rooms.
-    neighbours: [Option<RoomNum>; ROOM_NEIGHBORS],
+    neighbours: [RoomNum; ROOM_NEIGHBORS],
     /// Possible danger in the room.
     dangers: Vec<Danger>,
 }
@@ -109,10 +109,6 @@ impl Room {
         let default_room = Room::default();
 
         Room { id, ..default_room }
-    }
-
-    fn neighbour_ids(&self) -> Vec<RoomNum> {
-        self.neighbours.iter().cloned().filter_map(|n| n).collect()
     }
 }
 
@@ -156,7 +152,7 @@ impl Maze {
 
         for (i, room) in rooms.iter_mut().enumerate() {
             for (j, nb) in room.neighbours.iter_mut().enumerate() {
-                *nb = Some(Maze::ADJS[i][j]);
+                *nb = Maze::ADJS[i][j];
             }
         }
 
@@ -188,11 +184,12 @@ impl Maze {
 
     /// Retrun the id of a random empty neighbour if any
     fn rnd_empty_neighbour(&mut self, room: RoomNum) -> Option<RoomNum> {
-        let neighbour_ids = self.rooms[room].neighbour_ids();
+        let neighbour_ids = &self.rooms[room].neighbours;
 
-        let empty_neighbours: Vec<_> = neighbour_ids
+        let empty_neighbours: Vec<RoomNum> = neighbour_ids
             .iter()
-            .filter(|&n| self.rooms[*n].dangers.is_empty())
+            .filter(|&&n| self.rooms[n].dangers.is_empty())
+            .cloned()
             .collect();
 
         if empty_neighbours.is_empty() {
@@ -201,7 +198,7 @@ impl Maze {
 
         let empty_neighbour = empty_neighbours.choose(&mut rand::thread_rng()).unwrap();
 
-        Some(**empty_neighbour)
+        Some(*empty_neighbour)
     }
 
     /// Current room description string.
@@ -223,7 +220,7 @@ impl Maze {
             self.rooms[room]
                 .neighbours
                 .iter()
-                .map(|n| n.unwrap().to_string())
+                .map(|n| n.to_string())
                 .collect::<Vec<String>>()
                 .join(", ")
         ));
@@ -236,7 +233,7 @@ impl Maze {
         self.rooms[room]
             .neighbours
             .iter()
-            .any(|n| self.rooms[n.unwrap()].dangers.contains(&danger))
+            .any(|&n| self.rooms[n].dangers.contains(&danger))
     }
 
     /// Index of neighboring room given by user `destination`, else an error message.
@@ -245,7 +242,7 @@ impl Maze {
 
         // check that the given destination is both a number an the number of a linked room
         if let Ok(room) = destination {
-            if self.rooms[current_room].neighbour_ids().contains(&room) {
+            if self.rooms[current_room].neighbours.contains(&room) {
                 return Ok(room);
             }
         }
@@ -399,9 +396,7 @@ fn test_maze_connected() {
             return true;
         }
         vis.insert(i);
-        maze.rooms[i].neighbours.iter().any(|neighbour| {
-            // Check that all rooms have three neighbors.
-            let k = neighbour.unwrap();
+        maze.rooms[i].neighbours.iter().any(|&k| {
             !vis.contains(&k) && exists_path(k, j, vis, maze)
         })
     }
