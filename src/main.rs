@@ -1,9 +1,7 @@
 //! *Hunt the Wumpus* reimplementation in Rust.
 
-use rand;
-use rand::prelude::SliceRandom;
-use std::io;
-use std::io::Write;
+use rand::{self, seq::SliceRandom};
+use std::io::{self, Write};
 use std::process::exit;
 
 /// Help message.
