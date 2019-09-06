@@ -404,7 +404,7 @@ fn main() {
                     println!("There are no tunnels from here to that room. Where do you wanto do shoot?");
                 }
             }
-            _ => match input {
+            Status::Normal => match input {
                 "h" => println!("{}", HELP),
                 "q" => {
                     println!("Are you so easily scared? [y/n]");
