@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::io::{self, Write};
 use std::process::exit;
 use rand::prelude::*;
@@ -83,7 +82,7 @@ enum Danger {
 #[derive(Default, Debug)]
 struct Room {
     id: RoomNum,
-    neighbours: [Cell<Option<RoomNum>>; ROOM_NEIGHBOURS],
+    neighbours: [RoomNum; ROOM_NEIGHBOURS],
     dangers: Vec<Danger>,
 }
 
@@ -98,10 +97,7 @@ impl Room {
     }
 
     fn neighbour_ids(&self) -> Vec<RoomNum> {
-        self.neighbours.iter()
-            .filter(|n| n.get().is_some())
-            .map(|n| n.get().unwrap())
-            .collect()
+        self.neighbours.clone().to_vec()
     }
 }
 
@@ -149,7 +145,7 @@ impl Maze {
 
         for (i, room) in rooms.iter_mut().enumerate() {
             for (j, nb) in room.neighbours.iter_mut().enumerate() {
-                nb.set(Some(Maze::ADJS[i][j]));
+                *nb = Maze::ADJS[i][j];
             }
         }
 
@@ -220,7 +216,7 @@ impl Maze {
         description.push_str(&format!("\nExits go to: {}",
                                       self.rooms[room].neighbours
                                           .iter()
-                                          .map(|n| n.get().unwrap().to_string())
+                                          .map(|n| n.to_string())
                                           .collect::<Vec<String>>()
                                           .join(", ")));
 
@@ -228,9 +224,8 @@ impl Maze {
     }
 
     fn is_danger_nearby(&self, room: RoomNum, danger: Danger) -> bool {
-        self.rooms[room].neighbours.iter().any(|n| {
-            self.rooms[n.get().unwrap()]
-                .dangers.contains(&danger)
+        self.rooms[room].neighbours.iter().any(|&n| {
+            self.rooms[n].dangers.contains(&danger)
         })
     }
 
