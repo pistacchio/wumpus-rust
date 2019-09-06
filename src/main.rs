@@ -6,8 +6,8 @@ use std::io::Write;
 use std::process::exit;
 use std::rc::Rc;
 use std::ops::{DerefMut, Deref};
-use rand::prelude::ThreadRng;
-use rand::prelude::*;
+use rand;
+use rand::prelude::SliceRandom;
 
 /// Help message.
 const HELP: &str = "\
@@ -125,12 +125,10 @@ impl Room {
     }
 }
 
-/// The Maze, including RNG state.
+/// The Maze,
 struct Maze {
     /// Room list.
     rooms: Vec<Room>,
-    /// RNG state.
-    rng: Rc<RefCell<ThreadRng>>,
 }
 
 impl Maze {
@@ -160,7 +158,7 @@ impl Maze {
     ];
 
     // Builds a vector of rooms comprising a dodecahedron.
-    fn new(rng: Rc<RefCell<ThreadRng>>) -> Self {
+    fn new() -> Self {
         let mut rooms: Vec<Room> = (0..MAZE_ROOMS)
             .map(|idx| Room::new(idx as RoomNum))
             .collect();
@@ -172,8 +170,7 @@ impl Maze {
         }
 
         let mut maze = Maze {
-            rooms,
-            rng,
+            rooms
         };
 
         // place the wumpus, pits and bats in empty rooms
@@ -200,7 +197,7 @@ impl Maze {
             .collect();
 
         empty_rooms
-            .choose(RefCell::borrow_mut(&self.rng).deref_mut())
+            .choose(&mut rand::thread_rng())
             .unwrap()
             .id
     }
@@ -218,7 +215,7 @@ impl Maze {
         }
 
         let empty_neighbour = empty_neighbours
-            .choose(RefCell::borrow_mut(&self.rng).deref_mut())
+            .choose(&mut rand::thread_rng())
             .unwrap();
 
         Some(**empty_neighbour)
@@ -280,8 +277,7 @@ enum Status {
 }
 
 fn main() {
-    let rng = Rc::new(RefCell::new(rand::thread_rng()));
-    let mut maze = Maze::new(rng.clone());
+    let mut maze = Maze::new();
     let mut player = Player::new(maze.rnd_empty_room());
     let mut status = Status::Normal;
 
@@ -346,7 +342,7 @@ fn main() {
                         exit(0);
                     } else {
                         // 75% chances of waking up the wumpus that would go into another room
-                        if RefCell::borrow_mut(rng.deref()).gen::<f32>() < WAKE_WUMPUS_PROB {
+                        if rand::random::<f32>() < WAKE_WUMPUS_PROB {
                             let wumpus_room = maze.rooms.iter()
                                 .find(|r| r.dangers.contains(&Danger::Wumpus))
                                 .unwrap()
@@ -365,7 +361,7 @@ fn main() {
                         }
 
                         player.arrows -= 1;
-                        if  player.arrows == 0 {
+                        if player.arrows == 0 {
                             println!("You ran out of arrows.\nGAME OVER");
                             exit(1);
                         }
@@ -403,8 +399,7 @@ fn main() {
 #[test]
 fn test_maze_connected() {
     use std::collections::HashSet;
-    let rng = Rc::new(RefCell::new(rand::thread_rng()));
-    let maze = Maze::new(rng.clone());
+    let maze = Maze::new();
     let n = maze.rooms.len();
 
     fn exists_path(
