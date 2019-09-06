@@ -254,6 +254,37 @@ impl Maze {
     }
 }
 
+#[test]
+fn test_maze_connected() {
+    use std::collections::HashSet;
+    let rng = Rc::new(RefCell::new(rand::thread_rng()));
+    let maze = Maze::new(rng.clone());
+    let n = maze.rooms.len();
+
+    fn exists_path(
+        i: RoomNum,
+        j: RoomNum,
+        vis: &mut HashSet<RoomNum>,
+        maze: &Maze)
+        -> bool
+    {
+        if i == j {
+            return true;
+        }
+        vis.insert(i);
+        maze.rooms[i].neighbours.iter().any(|neighbour| {
+            // Check that all rooms have three neighbors.
+            let k = neighbour.get().unwrap();
+            !vis.contains(&k) && exists_path(k, j, vis, maze)
+        })
+    }
+    for i in 0..n {
+        for j in 0..n {
+            assert!(exists_path(i, j, &mut HashSet::new(), &maze));
+        }
+    }
+}
+
 ///////////////
 // MAIN LOOP //
 ///////////////
