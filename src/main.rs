@@ -192,13 +192,9 @@ impl Maze {
             .cloned()
             .collect();
 
-        if empty_neighbours.is_empty() {
-            return None;
-        }
-
-        let empty_neighbour = empty_neighbours.choose(&mut rand::thread_rng()).unwrap();
-
-        Some(*empty_neighbour)
+        empty_neighbours
+            .choose(&mut rand::thread_rng())
+            .map(|&n| n)
     }
 
     /// Current room description string.
