@@ -1,8 +1,6 @@
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::io::{self, Write};
 use std::process::exit;
-use std::rc::Rc;
-use std::ops::{DerefMut, Deref};
 use rand::prelude::*;
 
 
@@ -114,7 +112,7 @@ impl Room {
 #[derive(Debug)]
 struct Maze {
     rooms: Vec<Room>,
-    rng: Rc<RefCell<ThreadRng>>,
+    rng: ThreadRng,
 }
 
 impl Maze {
@@ -144,7 +142,7 @@ impl Maze {
     ];
 
     // Builds a vector of rooms comprising a dodecahedron.
-    fn new(rng: Rc<RefCell<ThreadRng>>) -> Self {
+    fn new(rng: ThreadRng) -> Self {
         let mut rooms: Vec<Room> = (0..MAZE_ROOMS)
             .map(|idx| Room::new(idx as RoomNum))
             .collect();
@@ -183,7 +181,7 @@ impl Maze {
             .collect();
 
         empty_rooms
-            .choose(RefCell::borrow_mut(&self.rng).deref_mut())
+            .choose(&mut self.rng)
             .unwrap()
             .id
     }
@@ -200,7 +198,7 @@ impl Maze {
         }
 
         let empty_neighbour = empty_neighbours
-            .choose(RefCell::borrow_mut(&self.rng).deref_mut())
+            .choose(&mut self.rng)
             .unwrap();
 
         Some(**empty_neighbour)
@@ -253,8 +251,8 @@ impl Maze {
 #[test]
 fn test_maze_connected() {
     use std::collections::HashSet;
-    let rng = Rc::new(RefCell::new(rand::thread_rng()));
-    let maze = Maze::new(rng.clone());
+    let rng = rand::thread_rng();
+    let maze = Maze::new(rng);
     let n = maze.rooms.len();
 
     fn exists_path(
@@ -293,7 +291,7 @@ enum Status {
 }
 
 fn main() {
-    let rng = Rc::new(RefCell::new(rand::thread_rng()));
+    let mut rng = rand::thread_rng();
     let mut maze = Maze::new(rng.clone());
     let mut player = Player::new(maze.rnd_empty_room());
     let mut status = Status::Normal;
@@ -359,7 +357,7 @@ fn main() {
                         exit(0);
                     } else {
                         // 75% chances of waking up the wumpus that would go into another room
-                        if RefCell::borrow_mut(rng.deref()).gen::<f32>() < WAKE_WUMPUS_PROB {
+                        if rng.gen::<f32>() < WAKE_WUMPUS_PROB {
                             let wumpus_room = maze.rooms.iter()
                                 .find(|r| r.dangers.contains(&Danger::Wumpus))
                                 .unwrap()
