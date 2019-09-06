@@ -1,11 +1,9 @@
 //! *Hunt the Wumpus* reimplementation in Rust.
 
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell};
 use std::io;
 use std::io::Write;
 use std::process::exit;
-use std::rc::Rc;
-use std::ops::{DerefMut, Deref};
 use rand;
 use rand::prelude::SliceRandom;
 
